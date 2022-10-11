@@ -25,18 +25,20 @@ from ethereum_dasm.evmdasm import EvmCode, Contract
 
 
 class EthContractService:
-
     def get_function_sighashes(self, bytecode):
         bytecode = clean_bytecode(bytecode)
         if bytecode is not None:
             evm_code = EvmCode(contract=Contract(bytecode=bytecode), static_analysis=False, dynamic_analysis=False)
             evm_code.disassemble(bytecode)
+            tmp = list()
             basic_blocks = evm_code.basicblocks
             if basic_blocks and len(basic_blocks) > 0:
-                init_block = basic_blocks[0]
-                instructions = init_block.instructions
-                push4_instructions = [inst for inst in instructions if inst.name == 'PUSH4']
-                return sorted(list(set('0x' + inst.operand for inst in push4_instructions)))
+                for i in range(len(basic_blocks)):
+                    init_block = basic_blocks[i]
+                    instructions = init_block.instructions
+                    push4_instructions = [inst for inst in instructions if inst.name == 'PUSH4']
+                    tmp = tmp + list(set('0x' + inst.operand for inst in push4_instructions))
+                return sorted(list(set(tmp)))
             else:
                 return []
         else:
@@ -73,9 +75,8 @@ class EthContractService:
     # https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC1155/ERC1155.sol
     def is_erc1155_contract(self, function_sighashes):
         c = ContractWrapper(function_sighashes)
-        return c.implements('balanceOf(address,uint256)') and \
-               c.implements('safeTransferFrom(address,address,uint256,uint256,bytes)') and \
-               c.implements('safeBatchTransferFrom(address,address,uint256[],uint256[],bytes')
+        return c.implements('balanceOfBatch(address[],uint256[])') and \
+               c.implements('safeTransferFrom(address,address,uint256,uint256,bytes)')
 
 
 def clean_bytecode(bytecode):
